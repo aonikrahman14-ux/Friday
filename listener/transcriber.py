@@ -2,7 +2,7 @@ import ctranslate2
 import numpy as np
 from faster_whisper import WhisperModel
 
-from config import WHISPER_MODEL, WHISPER_LANG, SAMPLE_RATE
+from config import WHISPER_MODEL, WHISPER_LANG
 
 
 def _load_model() -> WhisperModel:
