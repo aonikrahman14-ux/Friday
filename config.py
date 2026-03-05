@@ -17,3 +17,6 @@ MAX_RECORD_SECONDS = 30       # safety cap: abort recording after this long
 # ─── Ollama ──────────────────────────────────────────────────────────────────
 OLLAMA_URL   = "http://localhost:11434"
 OLLAMA_MODEL = "phi3"
+
+# ─── Piper TTS ───────────────────────────────────────────────────────────────
+PIPER_VOICE = "en_US-lessac-medium"  # voice model to download & use

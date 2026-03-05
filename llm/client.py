@@ -1,9 +1,13 @@
 import json
+import re
+from typing import Callable, Optional
+
 import requests
 
 from config import OLLAMA_URL, OLLAMA_MODEL
 
-_GENERATE_URL = f"{OLLAMA_URL}/api/generate"
+_GENERATE_URL   = f"{OLLAMA_URL}/api/generate"
+_SENTENCE_END   = re.compile(r'(?<=[.!?])\s')  # split after . ! ? followed by space
 
 
 def warmup() -> None:
@@ -33,10 +37,11 @@ def warmup() -> None:
         print(f"[Friday] WARNING: Ollama warmup failed — {exc}")
 
 
-def ask(prompt: str) -> None:
+def ask(prompt: str, on_sentence: Optional[Callable[[str], None]] = None) -> None:
     """
-    Stream a response from the Ollama model and print tokens as they arrive.
-    Prints a warning and returns silently if Ollama is unreachable.
+    Stream a response from the Ollama model, printing tokens as they arrive.
+    When a sentence boundary is detected, on_sentence(sentence) is called
+    so the caller can speak each sentence immediately (TTS).
     """
     try:
         with requests.post(
@@ -47,13 +52,35 @@ def ask(prompt: str) -> None:
         ) as resp:
             resp.raise_for_status()
             print("[Friday] ", end="", flush=True)
+
+            buffer = ""
             for raw_line in resp.iter_lines():
                 if not raw_line:
                     continue
-                data = json.loads(raw_line)
-                print(data.get("response", ""), end="", flush=True)
+                data  = json.loads(raw_line)
+                token = data.get("response", "")
+                print(token, end="", flush=True)
+
+                if on_sentence:
+                    buffer += token
+                    # Flush complete sentences to TTS as they form
+                    parts = _SENTENCE_END.split(buffer)
+                    for sentence in parts[:-1]:      # all but the trailing fragment
+                        if sentence.strip():
+                            try:
+                                on_sentence(sentence.strip())
+                            except Exception as tts_exc:
+                                print(f"\n[Friday] WARNING: TTS error — {tts_exc}")
+                    buffer = parts[-1]               # keep the incomplete fragment
+
                 if data.get("done"):
-                    print()  # final newline
+                    print()  # newline after streamed output
+                    # Speak any remaining text after the last sentence boundary
+                    if on_sentence and buffer.strip():
+                        try:
+                            on_sentence(buffer.strip())
+                        except Exception as tts_exc:
+                            print(f"\n[Friday] WARNING: TTS error — {tts_exc}")
                     break
 
     except requests.exceptions.ConnectionError:

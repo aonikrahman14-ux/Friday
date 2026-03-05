@@ -26,6 +26,7 @@ from wakeword.wake_detector import WakeWordDetector
 from listener.recorder     import record_until_silence
 from listener.transcriber  import Transcriber
 from llm.client            import warmup, ask
+from tts.speaker           import Speaker
 
 
 def main():
@@ -35,7 +36,10 @@ def main():
     # ── 2. Load Whisper once
     transcriber = Transcriber()
 
-    # ── 3. Initialise wake word detector
+    # ── 3. Load Piper TTS once (downloads voice model on first run)
+    speaker = Speaker()
+
+    # ── 4. Initialise wake word detector
     detector = WakeWordDetector()
 
     print("\n[Friday] All systems ready. Say 'Hey Friday' to begin.\n")
@@ -57,9 +61,10 @@ def main():
                 print("[Friday] (nothing heard)\n")
                 continue
 
-            # d. Print what the user said, then stream the LLM reply
+            # d. Print what the user said, then stream LLM reply sentence-by-sentence
+            #    Each complete sentence is immediately spoken by Piper TTS
             print(f"[You]    {text}")
-            ask(text)
+            ask(text, on_sentence=speaker.speak)
             print()
 
     except KeyboardInterrupt:
@@ -67,6 +72,7 @@ def main():
 
     finally:
         detector.cleanup()
+        speaker.cleanup()
         print("\n[Friday] Shut down.")
 
 
